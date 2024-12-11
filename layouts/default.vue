@@ -1,12 +1,12 @@
 <template>
     <div class="min-h-screen flex relative bg-white">
         <!-- Mobile Menu Toggle -->
-        <Button 
+        <!-- <Button 
             icon="pi pi-bars" 
             @click="showSidebar = !showSidebar"
             class="fixed top-4 left-4 md:hidden z-50" 
             rounded
-        />
+        /> -->
 
         <!-- Sidebar with Backdrop -->
         <div 
@@ -78,6 +78,7 @@
         >
             <slot />
         </div>
+        <Toast />
     </div>
 </template>
 

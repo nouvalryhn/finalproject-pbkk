@@ -4,9 +4,17 @@
 
         <div class="rounded">
 
-            <DataView :value="products" :layout="layout">
+            <DataView :value="filteredProducts" :layout="layout">
                 <template #header>
-                    <div class="flex justify-end">
+                    <div class="flex flex-col sm:flex-row justify-between gap-4 mb-4">
+                        <span class="p-input-icon-left flex-1">
+                            <!-- <i class="pi pi-search" /> -->
+                            <InputText 
+                                v-model="searchQuery" 
+                                placeholder="Search products..." 
+                                class="w-full"
+                            />
+                        </span>
                         <SelectButton v-model="layout" :options="layoutOptions" :allowEmpty="false">
                             <template #option="{ option }">
                                 <i :class="[option === 'list' ? 'pi pi-bars' : 'pi pi-table']" />
@@ -38,8 +46,7 @@
                                         <div class="bg-surface-100 p-1" style="border-radius: 30px">
                                             <div class="bg-surface-0 flex items-center gap-2 justify-center py-1 px-2"
                                                 style="border-radius: 30px; box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.04), 0px 1px 2px 0px rgba(0, 0, 0, 0.06)">
-                                                <span class="text-surface-900 font-medium text-sm">{{ item.rating
-                                                    }}</span>
+                                                <span class="text-surface-900 font-medium text-sm">{{ item.rating }}</span>
                                                 <i class="pi pi-star-fill text-yellow-500"></i>
                                             </div>
                                         </div>
@@ -47,7 +54,7 @@
                                     <div class="flex flex-col md:items-end gap-8">
                                         <span class="text-xl font-semibold">Rp {{ formatPrice(item.price) }}</span>
                                         <div class="flex flex-row-reverse md:flex-row gap-2">
-                                            <Button icon="pi pi-heart" outlined></Button>
+                                            <Button icon="pi pi-info-circle" outlined @click="showProductDetails(item)"></Button>
                                             <Button icon="pi pi-shopping-cart" label="Add to Cart"
                                                 :disabled="item.inventoryStatus === 'OUTOFSTOCK'"
                                                 @click="handleAddToCart(item.id)" class="flex-auto whitespace-nowrap" />
@@ -97,7 +104,7 @@
                                             <Button icon="pi pi-shopping-cart" label="Add to Cart"
                                                 :disabled="item.inventoryStatus === 'OUTOFSTOCK'"
                                                 @click="handleAddToCart(item.id)" class="flex-auto whitespace-nowrap" />
-                                            <Button icon="pi pi-heart" outlined></Button>
+                                            <Button icon="pi pi-info-circle" outlined @click="showProductDetails(item)"></Button>
                                         </div>
                                     </div>
                                 </div>
@@ -107,6 +114,45 @@
                 </template>
             </DataView>
         </div>
+
+        <Dialog 
+            v-model:visible="dialogVisible" 
+            modal 
+            header="Product Details"
+            :style="{ width: '90%', maxWidth: '500px' }"
+        >
+            <div v-if="selectedProduct" class="flex flex-col gap-4">
+                <img 
+                    :src="selectedProduct.image" 
+                    :alt="selectedProduct.name"
+                    class="w-full h-64 object-contain rounded-lg"
+                />
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="font-bold text-lg">{{ selectedProduct.name }}</h3>
+                        <p class="text-surface-600">{{ selectedProduct.category }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xl font-semibold">Rp {{ formatPrice(selectedProduct.price) }}</p>
+                        <div class="flex items-center justify-end gap-2">
+                            <span>{{ selectedProduct.rating }}</span>
+                            <i class="pi pi-star-fill text-yellow-500"></i>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-2">Stock Status</h4>
+                    <Tag 
+                        :value="selectedProduct.inventoryStatus" 
+                        :severity="getSeverity(selectedProduct)"
+                    ></Tag>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-2">Description</h4>
+                    <p class="text-surface-600">{{ selectedProduct.description }}</p>
+                </div>
+            </div>
+        </Dialog>
     </div>
 </template>
 
@@ -115,8 +161,20 @@ const products = ref([])
 const layout = ref('grid')
 const layoutOptions = ['list', 'grid']
 const toast = useToast()
+const searchQuery = ref('')
 import { useCart } from '~/stores/useCart'
 const { addToCart } = useCart()
+
+const filteredProducts = computed(() => {
+    if (!searchQuery.value) return products.value
+    
+    const query = searchQuery.value.toLowerCase()
+    return products.value.filter(product => 
+        product.name.toLowerCase().includes(query) ||
+        product.category.toLowerCase().includes(query) ||
+        product.description.toLowerCase().includes(query)
+    )
+})
 
 async function handleAddToCart(productId) {
     try {
@@ -175,4 +233,12 @@ onMounted(async () => {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch products', life: 3000 });
     }
 })
+
+const dialogVisible = ref(false)
+const selectedProduct = ref(null)
+
+function showProductDetails(product) {
+    selectedProduct.value = product
+    dialogVisible.value = true
+}
 </script>

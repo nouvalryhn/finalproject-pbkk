@@ -20,10 +20,20 @@
                     <div class="flex-1">
                         <h3 class="text-lg font-medium">{{ item.name }}</h3>
                         <p class="text-surface-500">Rp {{ formatPrice(item.price) }}</p>
+                        <p class="text-sm text-surface-400">Stock: {{ item.stock }}</p>
                         <div class="flex items-center gap-4 mt-2">
-                            <InputNumber v-model="item.quantity" :min="1" showButtons/>
-                            <Button icon="pi pi-trash" severity="danger" 
-                                    @click="removeFromCart(item.id)"/>
+                            <InputNumber 
+                                v-model="item.quantity" 
+                                :min="1" 
+                                :max="item.stock"
+                                showButtons
+                                @change="updateCartItem(item)"
+                            />
+                            <Button 
+                                icon="pi pi-trash" 
+                                severity="danger" 
+                                @click="removeFromCart(item.id)"
+                            />
                         </div>
                     </div>
                 </div>
@@ -41,7 +51,12 @@
                             <span>Total Price:</span>
                             <span>Rp {{ formatPrice(totalPrice) }}</span>
                         </div>
-                        <Button label="Checkout" class="w-full"/>
+                        <Button 
+                            label="Checkout" 
+                            class="w-full"
+                            @click="handleCheckout"
+                            :loading="checkoutLoading"
+                        />
                     </template>
                 </Card>
             </div>
@@ -50,12 +65,36 @@
 </template>
 
 <script setup>
-const { cartItems, loading, totalItems, totalPrice, fetchCartItems, removeFromCart } = useCart()
-const toast = useToast()
 import { useCart } from '~/stores/useCart'
+const { cartItems, loading, totalItems, totalPrice, fetchCartItems, removeFromCart, updateCartItem, checkout } = useCart()
+const toast = useToast()
+const checkoutLoading = ref(false)
 
 const formatPrice = (price) => {
     return new Intl.NumberFormat('id-ID').format(price)
+}
+
+async function handleCheckout() {
+    checkoutLoading.value = true
+    try {
+        await checkout()
+        toast.add({ 
+            severity: 'success', 
+            summary: 'Success', 
+            detail: 'Order placed successfully', 
+            life: 3000 
+        })
+        await fetchCartItems()
+    } catch (error) {
+        toast.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: error.message || 'Failed to place order', 
+            life: 3000 
+        })
+    } finally {
+        checkoutLoading.value = false
+    }
 }
 
 onMounted(async () => {

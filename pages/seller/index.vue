@@ -123,7 +123,11 @@
                             {{ formatCurrency(slotProps.data.price) }}
                         </template>
                     </Column>
-                    <Column field="stock" header="Stock" sortable></Column>
+                    <Column field="stock" header="Stock" sortable>
+                        <template #body="slotProps">
+                            {{slotProps.data.quantity}}
+                        </template>
+                    </Column>
                     <Column field="rating" header="Rating">
                         <template #body="slotProps">
                             <Rating v-model="slotProps.data.rating" :readonly="true" :cancel="false" />
@@ -138,11 +142,87 @@
                 </DataTable>
             </template>
         </Card>
+
+        <!-- Edit Modal -->
+        <div v-if="editDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-[90%] max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Edit Product</h3>
+                    <Button icon="pi pi-times" text @click="editDialog = false" />
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="field">
+                        <label for="edit-name">Product Name</label>
+                        <InputText id="edit-name" v-model="editingProduct.name" class="w-full" />
+                    </div>
+                    <div class="field">
+                        <label for="edit-price">Price</label>
+                        <InputNumber 
+                            id="edit-price" 
+                            v-model="editingProduct.price" 
+                            mode="currency" 
+                            currency="IDR" 
+                            locale="id-ID"
+                            :minFractionDigits="0"
+                            class="w-full" 
+                        />
+                    </div>
+                    <div class="field">
+                        <label for="edit-category">Category</label>
+                        <InputText 
+                            id="edit-category" 
+                            v-model="editingProduct.category" 
+                            class="w-full"
+                        />
+                    </div>
+                    <div class="field">
+                        <label for="edit-stock">Stock</label>
+                        <InputNumber id="edit-stock" v-model="editingProduct.quantity" class="w-full" />
+                    </div>
+                    <div class="field">
+                        <label for="edit-rating">Rating</label>
+                        <Rating v-model="editingProduct.rating" :cancel="false" />
+                    </div>
+                    <div class="field col-span-2">
+                        <label for="edit-description">Description</label>
+                        <Textarea id="edit-description" v-model="editingProduct.description" rows="5" class="w-full" />
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-4">
+                    <Button label="Cancel" severity="secondary" text @click="editDialog = false" />
+                    <Button label="Save Changes" @click="handleEditProduct" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div v-if="confirmDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-[90%] max-w-md">
+                <h3 class="text-xl font-semibold mb-4">Confirm Delete</h3>
+                
+                <div v-if="productToDelete" class="flex items-center gap-3 mb-4">
+                    <img :src="productToDelete.image" :alt="productToDelete.name" class="w-16 h-16 object-cover rounded" />
+                    <div>
+                        <h4 class="font-semibold">{{ productToDelete.name }}</h4>
+                        <p class="text-sm text-gray-600">{{ formatCurrency(productToDelete.price) }}</p>
+                    </div>
+                </div>
+
+                <p class="mb-4">Are you sure you want to delete this product?</p>
+
+                <div class="flex justify-end gap-2">
+                    <Button label="Cancel" severity="secondary" text @click="confirmDialog = false" />
+                    <Button label="Delete" severity="danger" @click="handleDeleteProduct" />
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup>
-import { ID } from 'appwrite';
+import { ID, Query } from 'appwrite';
 
 const products = ref([])
 const newProduct = ref({
@@ -160,15 +240,26 @@ const imageRef = ref(null)
 const isAnalyzing = ref(false)
 const predictions = ref([])
 
+// Add these refs for modal control
+const editDialog = ref(false)
+const editingProduct = ref(null)
+const confirmDialog = ref(false)
+const productToDelete = ref(null)
+
 onMounted(async () => {
     await fetchProducts()
 })
 
 async function fetchProducts() {
     try {
+        const currentUser = await account.get()
+        
         const response = await databases.listDocuments(
             '6746fde600237a0a08d3',
-            '6746fe20002e26e57729'
+            '6746fe20002e26e57729',
+            [
+                Query.equal('user_id', currentUser.$id)
+            ]
         )
         products.value = response.documents
     } catch (error) {
@@ -205,6 +296,8 @@ async function handleAddProduct() {
             throw new Error('Please upload an image first')
         }
 
+        const currentUser = await account.get()
+
         await databases.createDocument(
             '6746fde600237a0a08d3',
             '6746fe20002e26e57729',
@@ -217,7 +310,8 @@ async function handleAddProduct() {
                 rating: newProduct.value.rating,
                 image: newProduct.value.image,
                 imageId: newProduct.value.imageId,
-                category: newProduct.value.category
+                category: newProduct.value.category,
+                user_id: currentUser.$id
             }
         )
         await fetchProducts()
@@ -328,5 +422,87 @@ function getBoundingBoxStyle(prediction) {
     }
 }
 
+function editProduct(product) {
+    editingProduct.value = { ...product }
+    editDialog.value = true
+}
 
-</script> 
+async function handleEditProduct() {
+    try {
+        await databases.updateDocument(
+            '6746fde600237a0a08d3',
+            '6746fe20002e26e57729',
+            editingProduct.value.$id,
+            {
+                name: editingProduct.value.name,
+                price: editingProduct.value.price,
+                description: editingProduct.value.description,
+                quantity: editingProduct.value.quantity,
+                rating: editingProduct.value.rating,
+                category: editingProduct.value.category
+            }
+        )
+        await fetchProducts()
+        editDialog.value = false
+        editingProduct.value = null
+        toast.add({ 
+            severity: 'success', 
+            summary: 'Success', 
+            detail: 'Product updated successfully', 
+            life: 3000 
+        })
+    } catch (error) {
+        console.error('Failed to update product:', error)
+        toast.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: 'Failed to update product', 
+            life: 3000 
+        })
+    }
+}
+
+function confirmDelete(product) {
+    productToDelete.value = product
+    confirmDialog.value = true
+}
+
+async function handleDeleteProduct() {
+    if (!productToDelete.value) return
+
+    try {
+        await deleteProduct(productToDelete.value.$id, productToDelete.value.imageId)
+        confirmDialog.value = false
+        productToDelete.value = null
+        toast.add({ 
+            severity: 'success', 
+            summary: 'Success', 
+            detail: 'Product deleted successfully', 
+            life: 3000 
+        })
+    } catch (error) {
+        console.error('Failed to delete product:', error)
+        toast.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: 'Failed to delete product', 
+            life: 3000 
+        })
+    }
+}
+
+// Add this to handle closing modals when clicking outside
+onMounted(() => {
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            editDialog.value = false
+            confirmDialog.value = false
+        }
+    })
+})
+</script>
+
+<style>
+/* Add this to prevent scrolling when modal is open */
+
+</style> 

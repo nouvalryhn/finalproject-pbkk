@@ -9,6 +9,7 @@ interface CartItem {
     name: string;
     price: number;
     image: string;
+    stock: number;
 }
 
 export const useCart = () => {
@@ -44,7 +45,8 @@ export const useCart = () => {
                     product_id: item.product_id,
                     name: product.name,
                     price: product.price,
-                    image: product.image
+                    image: product.image,
+                    stock: product.quantity
                 }
             }))
         } catch (err) {
@@ -110,6 +112,56 @@ export const useCart = () => {
         }
     }
 
+    async function updateCartItem(item: CartItem) {
+        loading.value = true
+        try {
+            await databases.updateDocument(
+                '6746fde600237a0a08d3',
+                '6747667f00301137b5fd',
+                item.id,
+                {
+                    quantity: item.quantity,
+                    updated_at: new Date()
+                }
+            )
+        } catch (err) {
+            error.value = err
+        } finally {
+            loading.value = false
+        }
+    }
+
+    async function checkout() {
+        loading.value = true
+        try {
+            // Update stock for each item
+            for (const item of cartItems.value) {
+                await databases.updateDocument(
+                    '6746fde600237a0a08d3',
+                    '6746fe20002e26e57729',
+                    item.product_id,
+                    {
+                        quantity: item.stock - item.quantity
+                    }
+                )
+                
+                // Delete cart item
+                await databases.deleteDocument(
+                    '6746fde600237a0a08d3',
+                    '6747667f00301137b5fd',
+                    item.id
+                )
+            }
+            
+            cartItems.value = []
+        } catch (err) {
+            error.value = err
+            throw err
+        } finally {
+            loading.value = false
+        }
+    }
+
     return {
         cartItems,
         loading,
@@ -118,6 +170,8 @@ export const useCart = () => {
         totalPrice,
         fetchCartItems,
         addToCart,
-        removeFromCart
+        removeFromCart,
+        updateCartItem,
+        checkout
     }
 } 

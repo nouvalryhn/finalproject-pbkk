@@ -62,6 +62,9 @@ export default defineNuxtConfig({
     ],
 
     primevue: {
+        components: {
+            // ... other components
+        },
         options: {
             ripple: true,
             inputVariant: 'filled',
@@ -73,7 +76,11 @@ export default defineNuxtConfig({
                     cssLayer: false,
                 }
             }
-        }
+        },
+        directives: {
+            // ... directives
+        },
+
     },
 
     css: [
