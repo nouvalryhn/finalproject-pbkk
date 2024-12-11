@@ -223,6 +223,7 @@
 
 <script setup>
 import { ID, Query } from 'appwrite';
+const toast = useToast();
 
 const products = ref([])
 const newProduct = ref({
@@ -372,7 +373,7 @@ async function analyzeImage() {
         })
         
         // Call Roboflow API with base64 data
-        const result = await fetch('https://detect.roboflow.com/ds1-znqts-gmcfp/3?api_key=sSLcfPO8snn8ltYQ2u1T', {
+        const result = await fetch('https://detect.roboflow.com/ds1-znqts-gmcfp/4?api_key=sSLcfPO8snn8ltYQ2u1T', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
@@ -394,6 +395,14 @@ async function analyzeImage() {
                 (current.confidence > prev.confidence) ? current : prev
             )
             newProduct.value.category = topPrediction.class
+        }
+        else{
+            toast.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: 'Failed to analyze image, no objects detected',
+            life: 3000 
+        })
         }
         
     } catch (error) {
