@@ -26,7 +26,7 @@
             <!-- Logo/Brand -->
             <div class="flex items-center gap-2 p-2 mb-4">
                 <img src="/shop-logo.svg" alt="Logo" class="w-8 h-8" />
-                <span class="font-extrabold text-lg text-gray-800">TechPedia</span>
+                <span class="font-extrabold text-lg text-gray-800">TechnoVye</span>
             </div>
 
             <!-- Navigation Links -->
